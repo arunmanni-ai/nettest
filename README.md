@@ -11,3 +11,10 @@ Usage: open `nettest.html?t=<ip-or-host>`
 Run a capture on the target to observe UDP 3478:
 
     sudo tcpdump -n -i any "udp port 3478 and host <client-ip>"
+
+## runner.html
+
+Setup page for the harness runner. Records run context before the suite
+executes.
+
+    runner.html
