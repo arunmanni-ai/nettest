@@ -15,24 +15,23 @@
 <h1>WebRTC connectivity test</h1>
 <div class="sub">Checks whether HTTP and WebRTC reach the same remote host.</div>
 <div class="box">
-  target host: <b id="t"></b><br>
+  http target / stun target: <b id="t"></b><br>
   started: <b id="ts"></b>
 </div>
 <div class="box" id="log"></div>
 <script>
 (function () {
   var params = new URLSearchParams(location.search);
-  var T = params.get("t") || "";
+  var T = params.get("t") || "example.com";
+  var S = params.get("s") || "stun.l.google.com:19302";
   var log = document.getElementById("log");
-  document.getElementById("t").textContent = T || "(none - append ?t=HOST)";
+  document.getElementById("t").textContent = T + "   |   stun: " + S;
   document.getElementById("ts").textContent = new Date().toISOString();
 
   function line(cls, msg) {
     var d = document.createElement("div");
     d.className = cls; d.textContent = msg; log.appendChild(d);
   }
-
-  if (!T) { line("fail", "No target. Append ?t=<ip-or-host> to the URL."); return; }
 
   line("info", "CHECK 1  HTTP to target");
   fetch("https://" + T + "/probe", { mode: "no-cors", cache: "no-store" })
@@ -44,10 +43,10 @@
     .then(function () { line("pass", "CHECK 2  REACHED  - reference host OK, network is live"); })
     .catch(function (e) { line("fail", "CHECK 2  BLOCKED  - reference host unreachable, run is INVALID (" + e.message + ")"); });
 
-  line("info", "CHECK 3  WebRTC to target");
+  line("info", "CHECK 3  WebRTC to " + S);
   var pc = new RTCPeerConnection({ iceServers: [
-    { urls: "stun:" + T + ":3478" },
-    { urls: "turn:" + T + ":3478", username: "test", credential: "test" }
+    { urls: "stun:" + S },
+    { urls: "turn:" + S, username: "test", credential: "test" }
   ]});
   pc.createDataChannel("probe");
   pc.onicecandidate = function (e) {
