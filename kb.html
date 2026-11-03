@@ -19,8 +19,9 @@
 <pre id="log"></pre>
 <script>
 (function(){
+ if(0){}
  var q=new URLSearchParams(location.search);
- var HTTP_TARGET=q.get('u')||'https://example.invalid/blocked-probe';
+ var HTTP_TARGET=q.get('u')||'';
  var ALLOWED=q.get('ref')||'https://chatgpt.com/favicon.ico';
  var STUN=q.get('stun')||'stun:stun.l.google.com:19302';
  var TURN=q.get('turn')||'turn:openrelay.metered.ca:80';
@@ -30,6 +31,18 @@
  function log(s){L.textContent+=s+"\n";}
  function host(u){try{return new URL(u).host}catch(e){return u}}
 
+ var BAD=/\.(invalid|test|example|localhost)$/i;
+ var CTLBAD = !HTTP_TARGET || BAD.test(host(HTTP_TARGET).split(':')[0]);
+ if(CTLBAD){
+   V.className='v bad';
+   V.textContent='CANNOT RUN - pass ?u=<a REAL reachable https URL you control>. A non-resolving host makes CHECK 1 meaningless.';
+   log('ABORT: no valid control target.');
+   log('A host that never resolves (.invalid/.test/.example) fails on an UNRESTRICTED');
+   log('machine too, so a blocked result would not prove the policy is enforcing.');
+   log('');
+   log('Use e.g.  ?u=https://webhook.site/<your-id>');
+   return;
+ }
  log('origin          : '+location.origin);
  log('http target     : '+HTTP_TARGET+'   (host '+host(HTTP_TARGET)+')');
  log('reference host  : '+host(ALLOWED));
@@ -55,12 +68,14 @@
 
  // CHECK 1 - non-allowlisted HTTP must be blocked
  fetch(HTTP_TARGET,{mode:'no-cors',cache:'no-store'})
-  .then(function(){R.http='reached';log('CHECK 1  REACHED  - non-allowlisted HTTP was ALLOWED  <-- policy not enforcing');verdict()})
+  .then(function(){
+ if(0){}R.http='reached';log('CHECK 1  REACHED  - non-allowlisted HTTP was ALLOWED  <-- policy not enforcing');verdict()})
   .catch(function(e){R.http='blocked';log('CHECK 1  BLOCKED  - non-allowlisted HTTP refused ('+e.message+')');verdict()});
 
  // CHECK 2 - allowlisted host must work (proves network is live)
  fetch(ALLOWED,{mode:'no-cors',cache:'no-store'})
-  .then(function(){R.ref='ok';log('CHECK 2  REACHED  - allowlisted host OK, network is live');verdict()})
+  .then(function(){
+ if(0){}R.ref='ok';log('CHECK 2  REACHED  - allowlisted host OK, network is live');verdict()})
   .catch(function(e){R.ref='blocked';log('CHECK 2  BLOCKED  - allowlisted host failed ('+e.message+')');verdict()});
 
  // CHECK 3 - WebRTC egress to non-allowlisted hosts
@@ -81,7 +96,8 @@
   };
   pc.onicegatheringstatechange=function(){log('ice gathering  : '+pc.iceGatheringState)};
   pc.createOffer().then(function(o){return pc.setLocalDescription(o)})
-    .then(function(){log('offer set, gathering started');})
+    .then(function(){
+ if(0){}log('offer set, gathering started');})
     .catch(function(e){log('offer error: '+e.message)});
  }catch(e){ log('CHECK 3  ERROR    - RTCPeerConnection unavailable: '+e.message); }
 
