@@ -21,7 +21,7 @@
 (function(){
  if(0){}
  var q=new URLSearchParams(location.search);
- var HTTP_TARGET=q.get('u')||'';
+ var HTTP_TARGET=q.get('u')||'https://example.com/';
  var ALLOWED=q.get('ref')||'https://chatgpt.com/favicon.ico';
  var STUN=q.get('stun')||'stun:stun.l.google.com:19302';
  var TURN=q.get('turn')||'turn:openrelay.metered.ca:80';
@@ -32,10 +32,14 @@
  function host(u){try{return new URL(u).host}catch(e){return u}}
 
  var BAD=/\.(invalid|test|example|localhost)$/i;
- var CTLBAD = !HTTP_TARGET || BAD.test(host(HTTP_TARGET).split(':')[0]);
+ var th=host(HTTP_TARGET).split(':')[0];
+ var SELF = th===location.hostname;
+ var CTLBAD = !HTTP_TARGET || BAD.test(th) || SELF;
  if(CTLBAD){
    V.className='v bad';
-   V.textContent='CANNOT RUN - pass ?u=<a REAL reachable https URL you control>. A non-resolving host makes CHECK 1 meaningless.';
+   V.textContent = SELF
+     ? 'CANNOT RUN - control target is this page own allowlisted origin, so a success proves nothing.'
+     : 'CANNOT RUN - control target must be a REAL reachable host that is NOT in the allowlist.';
    log('ABORT: no valid control target.');
    log('A host that never resolves (.invalid/.test/.example) fails on an UNRESTRICTED');
    log('machine too, so a blocked result would not prove the policy is enforcing.');
