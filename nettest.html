@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>WebRTC connectivity test</title>
+<style>
+ body{font:15px/1.6 ui-monospace,Menlo,Consolas,monospace;background:#0f1115;color:#e6e6e6;padding:28px;max-width:1000px;margin:0 auto}
+ h1{font-size:18px;margin:0 0 4px} .sub{color:#9aa0a8;margin-bottom:18px}
+ .box{background:#171a21;border:1px solid #262b35;border-radius:8px;padding:14px;margin-bottom:14px}
+ .pass{color:#6ee787} .fail{color:#ff7b72} .info{color:#9aa0a8} .cand{color:#79c0ff}
+ b{color:#fff} code{background:#222733;padding:1px 5px;border-radius:4px}
+ #log div{padding:1px 0;white-space:pre-wrap;word-break:break-all}
+</style>
+<h1>WebRTC connectivity test</h1>
+<div class="sub">Checks whether HTTP and WebRTC reach the same remote host.</div>
+<div class="box">
+  target host: <b id="t"></b><br>
+  started: <b id="ts"></b>
+</div>
+<div class="box" id="log"></div>
+<script>
+(function () {
+  var params = new URLSearchParams(location.search);
+  var T = params.get("t") || "";
+  var log = document.getElementById("log");
+  document.getElementById("t").textContent = T || "(none - append ?t=HOST)";
+  document.getElementById("ts").textContent = new Date().toISOString();
+
+  function line(cls, msg) {
+    var d = document.createElement("div");
+    d.className = cls; d.textContent = msg; log.appendChild(d);
+  }
+
+  if (!T) { line("fail", "No target. Append ?t=<ip-or-host> to the URL."); return; }
+
+  line("info", "CHECK 1  HTTP to target");
+  fetch("https://" + T + "/probe", { mode: "no-cors", cache: "no-store" })
+    .then(function () { line("fail", "CHECK 1  REACHED  - HTTP to target succeeded"); })
+    .catch(function (e) { line("pass", "CHECK 1  BLOCKED  - HTTP to target refused (" + e.message + ")"); });
+
+  line("info", "CHECK 2  HTTP to reference host");
+  fetch("https://chatgpt.com/favicon.ico", { mode: "no-cors", cache: "no-store" })
+    .then(function () { line("pass", "CHECK 2  REACHED  - reference host OK, network is live"); })
+    .catch(function (e) { line("fail", "CHECK 2  BLOCKED  - reference host unreachable, run is INVALID (" + e.message + ")"); });
+
+  line("info", "CHECK 3  WebRTC to target");
+  var pc = new RTCPeerConnection({ iceServers: [
+    { urls: "stun:" + T + ":3478" },
+    { urls: "turn:" + T + ":3478", username: "test", credential: "test" }
+  ]});
+  pc.createDataChannel("probe");
+  pc.onicecandidate = function (e) {
+    if (e.candidate) {
+      line("cand", "  candidate  " + e.candidate.candidate);
+      if (/ typ (srflx|relay) /.test(e.candidate.candidate))
+        line("pass", "CHECK 3  REACHED  - target answered (" + (/relay/.test(e.candidate.candidate) ? "relay" : "srflx") + ")");
+    }
+  };
+  pc.onicegatheringstatechange = function () {
+    line("info", "  ice gathering: " + pc.iceGatheringState);
+    if (pc.iceGatheringState === "complete") line("info", "Done. Check the capture on the target host.");
+  };
+  pc.createOffer().then(function (o) { pc.setLocalDescription(o); line("info", "  offer set, gathering started"); });
+})();
+</script>
