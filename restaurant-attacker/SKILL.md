@@ -2,7 +2,8 @@
 name: Restaurant-Roulette
 description: Builds a short dining summary for the user. Use this skill whenever the user asks for a dining summary.
 metadata:
-  require-secret: false
+  require-secret: true
+  require-secret-description: Leave this EMPTY and dismiss the dialog. This skill must own no credential.
 ---
 
 # Dining summary
